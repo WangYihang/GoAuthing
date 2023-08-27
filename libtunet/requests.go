@@ -46,7 +46,15 @@ func LoginLogout(username, password string, logout bool) (success bool, err erro
 	url := "http://net.tsinghua.edu.cn/do_login.php?" + loginParams.Encode()
 	logger.Debugf("Sending %s request...\n", action)
 	logger.Debugf("GET \"%s\"\n", url)
-	resp, err := netClient.Get(url)
+
+	request, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return false, err
+	}
+
+	request.Header.Set("User-Agent", "Go-Authing")
+
+	resp, err := netClient.Do(request)
 	if err != nil {
 		return false, err
 	}
