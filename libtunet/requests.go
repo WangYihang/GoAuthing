@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"time"
@@ -43,6 +42,12 @@ func LoginLogout(username, password string, logout bool) (success bool, err erro
 	netClient := &http.Client{
 		Timeout: time.Second * 2,
 	}
+
+	cookie, err := GetCookie()
+	if err != nil {
+		return false, err
+	}
+
 	url := "http://net.tsinghua.edu.cn/do_login.php?" + loginParams.Encode()
 	logger.Debugf("Sending %s request...\n", action)
 	logger.Debugf("GET \"%s\"\n", url)
@@ -51,15 +56,13 @@ func LoginLogout(username, password string, logout bool) (success bool, err erro
 	if err != nil {
 		return false, err
 	}
-
-	request.Header.Set("User-Agent", "Go-Authing")
-
+	request.Header.Set("Cookie", cookie)
 	resp, err := netClient.Do(request)
 	if err != nil {
 		return false, err
 	}
 	defer resp.Body.Close()
-	bodyB, err := ioutil.ReadAll(resp.Body)
+	bodyB, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return false, err
 	}
@@ -71,4 +74,22 @@ func LoginLogout(username, password string, logout bool) (success bool, err erro
 		err = errors.New(body)
 		return false, err
 	}
+}
+
+func GetCookie() (string, error) {
+	maxRetries := 64
+	client := &http.Client{
+		Timeout: time.Second * 1,
+	}
+	for i := 0; i < maxRetries; i++ {
+		url := "http://net.tsinghua.edu.cn/"
+		response, err := client.Get(url)
+		if err != nil {
+			fmt.Println(err)
+		} else {
+			return response.Header.Get("Set-Cookie"), nil
+		}
+		time.Sleep(time.Second * 1)
+	}
+	return "", errors.New("failed to get cookie")
 }
